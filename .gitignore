@@ -1,0 +1,37 @@
+# --- datos y claves del usuario: NUNCA se suben ---
+perfumappte.db
+perfumappte.db-*
+*.db
+*.sqlite
+gemini.key
+kaggle.json
+access_token
+.kaggle/
+.env
+*.env
+selftest.log
+error.log
+
+# caché de imágenes de perfumes (se descargan solas)
+images/
+
+# perfumes.jsonl descargado de Kaggle
+data/
+
+# --- generado al compilar (el instalador va en las Releases de GitHub, no en el repositorio) ---
+build/
+dist/
+*.spec
+*.exe
+
+# --- entorno de desarrollo ---
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.idea/
+.vscode/
+.claude/
+*.log
+Thumbs.db
+desktop.ini

@@ -1,0 +1,4 @@
+# Para crear el instalador y revisar el código (no hacen falta para usar la aplicación)
+pyinstaller>=6.0
+pyflakes>=3.0
+vulture>=2.0

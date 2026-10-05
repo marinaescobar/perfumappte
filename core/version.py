@@ -5,7 +5,7 @@ Para publicar una versión nueva:  1) sube VERSION aquí,  2) crea en GitHub una
 Las personas que ya tienen la app instalada verán el aviso de actualización la próxima vez que la abran.
 """
 APP_NAME = "Perfúmappte"
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 # Repositorio de GitHub con las Releases, en formato  usuario/repositorio.  Mientras tenga el valor de ejemplo, la app no busca actualizaciones.
 GITHUB_REPO = "marinaescobar/perfumappte"

@@ -1,9 +1,9 @@
 """Gráficos de «Mis gustos», dibujados con QPainter para que compartan la estética de la app (lila suave, esquinas redondas)."""
 import math
-from PyQt6.QtCore import Qt, QRectF, QPointF, QSize
-from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QPainterPath
+from PyQt6.QtCore import Qt, QRectF, QPointF, QSize, pyqtSignal
+from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QPainterPath, QPolygonF
 from PyQt6.QtWidgets import QWidget, QFrame, QVBoxLayout, QLabel, QSizePolicy
-from ui import icons
+from ui import icons, theme
 from ui.theme import ACCENT, ACCENT_HOVER, BAR_HOVER, BORDER, HOVER, ICON_OFF, MUTED, PALE, PALETTE, PANEL, TRACK, TXT     # se actualizan al cambiar de tema
 
 
@@ -45,15 +45,17 @@ class GenderTile(QFrame):
 class HBars(QWidget):
     """Barras horizontales redondeadas. filas: dict(label, value, color, icon=None, text=None). Resalta la fila bajo el ratón."""
     ROW = 30
+    hovered = pyqtSignal(int)                      # fila bajo el ratón (-1: ninguna)
     def __init__(s, rows, vmax=None):
-        super().__init__(); s.rows = rows; s.vmax = vmax or max((r["value"] for r in rows), default=1) or 1; s.hover = -1
+        super().__init__(); s.sub = None; s.rows = rows; s.vmax = vmax or max((r["value"] for r in rows), default=1) or 1; s.hover = -1
         s.setMouseTracking(True); s.setMinimumHeight(max(1, len(rows)) * s.ROW + 4); s.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
     def sizeHint(s): return QSize(300, max(1, len(s.rows)) * s.ROW + 4)
     def mouseMoveEvent(s, e):
         i = int((e.position().y() - 3) // s.ROW); i = i if 0 <= i < len(s.rows) else -1
         if i != s.hover:
-            s.hover = i; s.update(); s.setToolTip(f"{s.rows[i]['label']}: {s.rows[i].get('text') or s.rows[i]['value']}" if i >= 0 else "")
-    def leaveEvent(s, e): s.hover = -1; s.update()
+            s.hover = i; s.update(); s.setToolTip(f"{s.rows[i]['label']}: {s.rows[i].get('text') or s.rows[i]['value']}" if i >= 0 else ""); s.hovered.emit(i)
+    def leaveEvent(s, e): s.hover = -1; s.update(); s.hovered.emit(-1)
+    def set_highlight(s, sub): s.sub = sub; s.update()        # sub: parte de cada fila que aportan los perfumes resaltados (None: nada resaltado)
     def paintEvent(s, e):
         p = QPainter(s); p.setRenderHint(QPainter.RenderHint.Antialiasing); _font(p, 12)
         lw = min(150, int(s.width() * 0.34)); vw = 44; x0 = lw + 8; x1 = s.width() - vw
@@ -66,7 +68,9 @@ class HBars(QWidget):
                                               p.fontMetrics().elidedText(r["label"], Qt.TextElideMode.ElideRight, lw - ix))
             p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor(TRACK)); p.drawRoundedRect(QRectF(x0, y + 5, x1 - x0, 14), 7, 7)
             w = max(14.0, (x1 - x0) * r["value"] / s.vmax) if r["value"] > 0 else 0
-            if w: p.setBrush(QColor(r.get("color") or ACCENT)); p.drawRoundedRect(QRectF(x0, y + 5, w, 14), 7, 7)
+            if w:
+                p.setBrush(QColor(r.get("color") or ACCENT)); p.setOpacity(0.3 if s.sub is not None else 1.0); p.drawRoundedRect(QRectF(x0, y + 5, w, 14), 7, 7); p.setOpacity(1.0)
+                if s.sub is not None and s.sub[i] > 0: p.drawRoundedRect(QRectF(x0, y + 5, min(w, max(14.0, (x1 - x0) * s.sub[i] / s.vmax)), 14), 7, 7)
             p.setPen(QColor(TXT if i == s.hover else MUTED)); p.drawText(QRectF(x1 + 6, y, vw - 6, 24), int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft), r.get("text") or str(r["value"]))
 
 
@@ -74,8 +78,9 @@ class Donut(QWidget):
     """Anillo interactivo con leyenda a la derecha. datos: [(etiqueta, valor, color)].
     Al pasar el ratón por un sector (o por su fila de la leyenda) este se engrosa y el centro muestra su nombre y porcentaje."""
     LEG = 24
+    hovered = pyqtSignal(int)
     def __init__(s, data, center=""):
-        super().__init__(); s.data = [d for d in data if d[1] > 0]; s.center = center; s.hover = -1
+        super().__init__(); s.sub = None; s.data = [d for d in data if d[1] > 0]; s.center = center; s.hover = -1
         s.setMouseTracking(True); s.setMinimumHeight(max(190, len(s.data) * s.LEG + 20))
     def _geom(s):
         d = min(s.height() - 24, 170, int(s.width() * 0.5)); th = d * 0.2; cx, cy = 12 + d / 2, s.height() / 2
@@ -95,16 +100,21 @@ class Donut(QWidget):
     def mouseMoveEvent(s, e):
         i = s._hit(e.position())
         if i != s.hover:
-            s.hover = i; s.update()
+            s.hover = i; s.update(); s.hovered.emit(i)
             s.setToolTip(f"{s.data[i][0]}: {round(100 * s.data[i][1] / s._tot())}%" if i >= 0 else "")
-    def leaveEvent(s, e): s.hover = -1; s.update()
+    def leaveEvent(s, e): s.hover = -1; s.update(); s.hovered.emit(-1)
+    def set_highlight(s, sub): s.sub = sub; s.update()
     def paintEvent(s, e):
         p = QPainter(s); p.setRenderHint(QPainter.RenderHint.Antialiasing); tot = s._tot(); d, th, c, R = s._geom()
         rect = QRectF(c.x() - R, c.y() - R, 2 * R, 2 * R); a = 90.0; gap = 2.5 if len(s.data) > 1 else 0
         for i, (lab, v, col) in enumerate(s.data):
             span = 360.0 * v / tot; path = QPainterPath(); path.arcMoveTo(rect, a); path.arcTo(rect, a, -span + gap)
             on = i == s.hover; pen = QPen(QColor(col), th * (1.16 if on else 1.0)); pen.setCapStyle(Qt.PenCapStyle.FlatCap)
-            p.setPen(pen); p.setBrush(Qt.BrushStyle.NoBrush); p.setOpacity(0.5 if (s.hover >= 0 and not on) else 1.0); p.drawPath(path); a -= span
+            p.setPen(pen); p.setBrush(Qt.BrushStyle.NoBrush); p.setOpacity(0.28 if s.sub is not None else 0.5 if (s.hover >= 0 and not on) else 1.0); p.drawPath(path)
+            if s.sub is not None and s.sub[i] > 0 and span - gap > 0:        # la parte de este sector que aportan los perfumes resaltados
+                part = QPainterPath(); part.arcMoveTo(rect, a); part.arcTo(rect, a, -(span - gap) * min(1.0, s.sub[i] / v))
+                p.setOpacity(1.0); p.drawPath(part)
+            a -= span
         p.setOpacity(1.0); inner = QRectF(c.x() - R + th * 0.7, c.y() - R + th * 0.7, 2 * (R - th * 0.7), 2 * (R - th * 0.7))
         if s.hover >= 0:
             lab, v, col = s.data[s.hover]
@@ -146,8 +156,9 @@ class ProfileStrips(QWidget):
 
 class Scatter(QWidget):
     """Duración (x) frente a estela (y) de cada perfume. puntos: [(x 0..1, y 0..1, nombre)]. Tooltip con el nombre al acercar el ratón."""
+    hovered = pyqtSignal(int)
     def __init__(s, points, xl, yl, lo_hi):
-        super().__init__(); s.points, s.xl, s.yl, s.lh = points, xl, yl, lo_hi; s.setMinimumHeight(230); s.setMouseTracking(True)
+        super().__init__(); s.sel = None; s.cur = -1; s.points, s.xl, s.yl, s.lh = points, xl, yl, lo_hi; s.setMinimumHeight(230); s.setMouseTracking(True)
     def _area(s): return QRectF(34, 8, s.width() - 46, s.height() - 44)
     def _pos(s, x, y):
         a = s._area(); return QPointF(a.left() + a.width() * (0.06 + 0.88 * x), a.bottom() - a.height() * (0.06 + 0.88 * y))
@@ -161,32 +172,73 @@ class Scatter(QWidget):
         p.drawText(QRectF(a.left(), a.bottom() + 4, a.width(), 16), int(Qt.AlignmentFlag.AlignHCenter), s.xl)
         p.save(); p.translate(12, a.center().y() + 20); p.rotate(-90); p.drawText(QPointF(0, 0), s.yl); p.restore()
         p.setPen(QPen(QColor(PANEL), 2))
-        for x, y, _n in s.points: p.setBrush(QColor(154, 111, 196, 170)); p.drawEllipse(s._pos(x, y), 8, 8)
+        c = QColor(ACCENT)
+        for i, (x, y, _n) in enumerate(s.points):
+            on = s.sel is not None and i in s.sel; c.setAlpha(170 if s.sel is None else 235 if on else 45); p.setBrush(c); p.drawEllipse(s._pos(x, y), 9 if on else 8, 9 if on else 8)
+    def set_highlight(s, sel): s.sel = sel; s.update()          # sel: índices de los puntos resaltados
+    def leaveEvent(s, e): s.cur = -1; s.hovered.emit(-1)
     def mouseMoveEvent(s, e):
-        best, bd = "", 14
-        for x, y, n in s.points:
+        best, bd, bi = "", 14, -1
+        for i, (x, y, n) in enumerate(s.points):
             d = math.hypot(s._pos(x, y).x() - e.position().x(), s._pos(x, y).y() - e.position().y())
-            if d < bd: best, bd = n, d
+            if d < bd: best, bd, bi = n, d, i
         if best != s.toolTip(): s.setToolTip(best)
+        if bi != s.cur: s.cur = bi; s.hovered.emit(bi)
 
 
 class VBars(QWidget):
     """Columnas redondeadas con el valor encima; resalta la columna bajo el ratón. datos: [(etiqueta, valor)]."""
+    hovered = pyqtSignal(int)
     def __init__(s, data):
-        super().__init__(); s.data = data; s.hover = -1; s.setMouseTracking(True); s.setMinimumHeight(190)
+        super().__init__(); s.sub = None; s.data = data; s.hover = -1; s.setMouseTracking(True); s.setMinimumHeight(190)
     def _cols(s):
         n = max(1, len(s.data)); gap = 12; bw = min(54.0, (s.width() - gap * (n + 1)) / n); x = (s.width() - (n * bw + (n - 1) * gap)) / 2
         return [(x + i * (bw + gap), bw) for i in range(len(s.data))]
     def mouseMoveEvent(s, e):
         i = next((k for k, (x, bw) in enumerate(s._cols()) if x - 6 <= e.position().x() <= x + bw + 6), -1)
-        if i != s.hover: s.hover = i; s.update(); s.setToolTip(f"{s.data[i][0]}: {s.data[i][1]}" if i >= 0 else "")
-    def leaveEvent(s, e): s.hover = -1; s.update()
+        if i != s.hover: s.hover = i; s.update(); s.setToolTip(f"{s.data[i][0]}: {s.data[i][1]}" if i >= 0 else ""); s.hovered.emit(i)
+    def leaveEvent(s, e): s.hover = -1; s.update(); s.hovered.emit(-1)
+    def set_highlight(s, sub): s.sub = sub; s.update()
     def paintEvent(s, e):
         p = QPainter(s); p.setRenderHint(QPainter.RenderHint.Antialiasing); _font(p, 11)
         m = max((v for _l, v in s.data), default=1) or 1; base = s.height() - 22; top = 22
         for i, ((lab, v), (x, bw)) in enumerate(zip(s.data, s._cols())):
             h = (base - top) * v / m if v else 0; on = i == s.hover
             p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor(BAR_HOVER if on else TRACK)); p.drawRoundedRect(QRectF(x, top, bw, base - top), 10, 10)
-            if h: p.setBrush(QColor(ACCENT_HOVER if on else ACCENT)); p.drawRoundedRect(QRectF(x, base - max(h, 14), bw, max(h, 14)), 10, 10)
+            if h:
+                p.setBrush(QColor(ACCENT_HOVER if on else ACCENT)); p.setOpacity(0.3 if s.sub is not None else 1.0); p.drawRoundedRect(QRectF(x, base - max(h, 14), bw, max(h, 14)), 10, 10); p.setOpacity(1.0)
+                if s.sub is not None and s.sub[i] > 0: hs = max(14.0, (base - top) * s.sub[i] / m); p.drawRoundedRect(QRectF(x, base - hs, bw, hs), 10, 10)
             p.setPen(QColor(TXT)); _font(p, 11, True); p.drawText(QRectF(x - 10, base - max(h, 14) - 20, bw + 20, 18), int(Qt.AlignmentFlag.AlignHCenter), str(v)); _font(p, 11)
             p.setPen(QColor(MUTED)); p.drawText(QRectF(x - 14, base + 4, bw + 28, 16), int(Qt.AlignmentFlag.AlignHCenter), lab)
+
+
+class Radar(QWidget):
+    """Perfil olfativo en radar: un eje por cada extremo de los tres ejes del perfil (los opuestos quedan enfrentados). Cada perfume es una forma tenue,
+    la media de la colección va en sólido y, si se resalta un grupo de perfumes, su media sale con trazo grueso. perfumes: [[0..1 por polo]]."""
+    def __init__(s, labels, perfumes):
+        super().__init__(); s.labels, s.pf, s.sel = labels, perfumes, None; s.setMinimumHeight(300)
+        s.avg = [sum(v[i] for v in perfumes) / len(perfumes) for i in range(len(labels))]
+    def set_highlight(s, sel): s.sel = sel; s.update()          # sel: índices de los perfumes resaltados
+    def _poly(s, vals, c, r):
+        n = len(vals); poly = QPolygonF()
+        for i, v in enumerate(vals):
+            a = math.radians(-90 + 360 * i / n); poly.append(QPointF(c.x() + r * v * math.cos(a), c.y() + r * v * math.sin(a)))
+        return poly
+    def paintEvent(s, e):
+        p = QPainter(s); p.setRenderHint(QPainter.RenderHint.Antialiasing); _font(p, 11); n = len(s.labels)
+        c = QPointF(s.width() / 2, s.height() / 2 + 2); r = max(40.0, min(s.width() / 2 - 78, s.height() / 2 - 30))
+        p.setPen(QPen(QColor(BORDER), 1)); p.setBrush(Qt.BrushStyle.NoBrush)
+        for k in (0.25, 0.5, 0.75, 1.0): p.drawPolygon(s._poly([k] * n, c, r))
+        for i, lab in enumerate(s.labels):
+            a = math.radians(-90 + 360 * i / n); ca, sa = math.cos(a), math.sin(a); p.setPen(QPen(QColor(BORDER), 1)); p.drawLine(c, QPointF(c.x() + r * ca, c.y() + r * sa))
+            tw = p.fontMetrics().horizontalAdvance(lab); tx, ty = c.x() + (r + 10) * ca, c.y() + (r + 10) * sa
+            p.setPen(QColor(TXT)); p.drawText(QPointF(tx - tw / 2 + ca * tw / 2, ty + 4 + sa * 6), lab)
+        hl = s.sel is not None
+        for i, vals in enumerate(s.pf):                       # una forma tenue por perfume (más marcada si está resaltado)
+            on = hl and i in s.sel; col = QColor(ACCENT); col.setAlpha(70 if on else 10 if hl else 22)
+            p.setPen(QPen(QColor(ACCENT), 1.2) if on else Qt.PenStyle.NoPen); p.setBrush(col); p.drawPolygon(s._poly(vals, c, r))
+        fill = QColor(ACCENT); fill.setAlpha(40 if hl else 85)
+        pen = QPen(QColor(ACCENT), 2); pen.setStyle(Qt.PenStyle.DashLine if hl else Qt.PenStyle.SolidLine); p.setPen(pen); p.setBrush(fill); p.drawPolygon(s._poly(s.avg, c, r))
+        if hl and s.sel:
+            sub = [sum(s.pf[j][i] for j in s.sel) / len(s.sel) for i in range(n)]; f2 = QColor(TXT); f2.setAlpha(60)
+            p.setPen(QPen(QColor(TXT), 2.5)); p.setBrush(f2); p.drawPolygon(s._poly(sub, c, r))

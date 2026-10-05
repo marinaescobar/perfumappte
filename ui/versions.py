@@ -14,7 +14,7 @@ from ui.workers import DownloadWorker, ReleasesWorker
 class VersionsDialog(QDialog):
     installing = pyqtSignal()                 # el instalador ya se ha lanzado: la ventana principal debe cerrar la app
 
-    def __init__(s, parent=None, releases=None):
+    def __init__(s, parent=None, releases=None, recheck=False):
         super().__init__(parent); s.setMinimumSize(660, 620); s.rels = list(releases or []); s.wk = None; s.dl = None
         v = QVBoxLayout(s); v.setSpacing(8); v.setContentsMargins(22, 20, 22, 18)
         s.h = QLabel(); s.h.setObjectName("h1"); s.h.setStyleSheet("font-size:24px;"); v.addWidget(s.h)
@@ -33,7 +33,7 @@ class VersionsDialog(QDialog):
         row.addStretch(1)
         row2.addWidget(s.b_web); row2.addStretch(1); row2.addWidget(s.b_close)
         s.retranslate(); s._fill()
-        if not s.rels: s.check()
+        if recheck or not s.rels: s.check()
 
     # ---------- textos
     def retranslate(s):

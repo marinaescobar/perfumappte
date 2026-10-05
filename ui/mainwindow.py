@@ -12,6 +12,7 @@ from ui.pages.collection import CollectionPage
 from ui.pages.discover import DiscoverPage
 from ui.pages.profile import ProfilePopup
 from ui.pages.recs import RecsPage
+from ui.settings import SettingsDialog, auto_update_enabled
 from ui.theme import ACCENT, MUTED, PANEL
 from ui.widgets import LangPicker, ThemeToggle
 from ui.versions import VersionsDialog
@@ -39,7 +40,8 @@ class Main(QMainWindow):
             pg.open_profile.connect(s.show_profile)
             if hasattr(pg, "changed"): pg.changed.connect(s.refresh_page)
             if hasattr(pg, "update_requested"): pg.update_requested.connect(lambda: s.start_update(True))
-        sl.addStretch(); s.fold = QPushButton(); s.fold.setObjectName("sidetoggle"); s.fold.setFixedSize(34, 34); s.fold.setCursor(Qt.CursorShape.PointingHandCursor)
+        sl.addStretch(); s.setb = QPushButton(); s.setb.setObjectName("nav"); s.setb.setIcon(s._nav_icon("nav_set")); s.setb.setIconSize(QSize(22, 22)); s.setb.setCursor(Qt.CursorShape.PointingHandCursor); s.setb.clicked.connect(s.open_settings); sl.addWidget(s.setb)
+        s.fold = QPushButton(); s.fold.setObjectName("sidetoggle"); s.fold.setFixedSize(34, 34); s.fold.setCursor(Qt.CursorShape.PointingHandCursor)
         s.fold.clicked.connect(s.toggle_side); sl.addWidget(s.fold, 0, Qt.AlignmentFlag.AlignHCenter); sl.addSpacing(6)
         s.stat = QLabel(); s.stat.setWordWrap(True)
         s.stat.setStyleSheet(f"color:{MUTED};font-size:11px;padding:12px 20px 4px 20px;background:transparent;"); sl.addWidget(s.stat)
@@ -80,6 +82,8 @@ class Main(QMainWindow):
         for b, key in zip(s.btns, s.NAV):
             b.setProperty("compact", not o); b.setText(("  " + tr(key)) if o else ""); b.setToolTip(tr("tip." + key) if o else tr(key) + "\n" + tr("tip." + key))
             b.style().unpolish(b); b.style().polish(b)
+        s.setb.setProperty("compact", not o); s.setb.setText(("  " + tr("nav.settings")) if o else ""); s.setb.setToolTip(tr("tip.nav.settings") if o else tr("nav.settings") + chr(10) + tr("tip.nav.settings"))
+        s.setb.style().unpolish(s.setb); s.setb.style().polish(s.setb)
         s.logo_lbl.style().unpolish(s.logo_lbl); s.logo_lbl.style().polish(s.logo_lbl)
         s.stat.setVisible(o); s.update_version_button(); s.fold.setText("‹" if o else "›"); s.fold.setToolTip(tr("tip.fold.close") if o else tr("tip.fold.open"))
     def set_theme(s, mode):
@@ -91,7 +95,7 @@ class Main(QMainWindow):
         """Lo que se pinta con imágenes ya hechas (iconos, logo) hay que regenerarlo con los colores nuevos."""
         s.themer.set_mode(theme.MODE)
         for b, kind in zip(s.btns, s.NAV_ICONS): b.setIcon(s._nav_icon(kind))
-        s.apply_side(); s.chat.retheme(); s.prof.update()
+        s.setb.setIcon(s._nav_icon("nav_set")); s.apply_side(); s.chat.retheme(); s.prof.update()
     def set_lang(s, code):
         if code and code != i18n.LANG:
             i18n.set_lang(code); db.set_meta("lang", code); s.retranslate()
@@ -114,7 +118,7 @@ class Main(QMainWindow):
 
     def check_version(s):
         """Busca una versión nueva (como mucho una vez al día, en segundo plano). Si la hay, avisa una sola vez por versión."""
-        if s.vw is not None or not selfupdate.configured() or not selfupdate.due(): return
+        if s.vw is not None or not auto_update_enabled() or not selfupdate.configured() or not selfupdate.due(): return
         s.vw = ReleasesWorker(); s.vw.done.connect(s._versions_loaded); s.vw.failed.connect(lambda _c: s._end_version_worker()); s.vw.start()
 
     def _end_version_worker(s):
@@ -123,11 +127,15 @@ class Main(QMainWindow):
 
     def _versions_loaded(s, rels):
         s._end_version_worker(); selfupdate.mark_checked(); s.releases = rels; s.new_release = selfupdate.newest(rels); s.update_version_button()
-        if s.new_release and selfupdate.skipped() != s.new_release.version: s.open_versions()
+        if s.new_release and selfupdate.skipped() != s.new_release.version: s.open_versions(manual=False)
 
-    def open_versions(s):
+    def open_settings(s):
+        SettingsDialog(s, s.open_versions, s.new_release.version if s.new_release else None).exec()
+
+    def open_versions(s, manual=True):
+        """`manual`: la abre la persona (busca de nuevo al abrirse); si no, es el aviso automático y ya trae las Releases."""
         if s.vdlg is not None and s.vdlg.isVisible(): s.vdlg.raise_(); s.vdlg.activateWindow(); return
-        s.vdlg = VersionsDialog(s, s.releases); s.vdlg.installing.connect(s._quit_for_update); s.vdlg.finished.connect(lambda _r: s._refresh_new_release())
+        s.vdlg = VersionsDialog(s, s.releases, recheck=manual); s.vdlg.installing.connect(s._quit_for_update); s.vdlg.finished.connect(lambda _r: s._refresh_new_release())
         s.vdlg.show()
 
     def _refresh_new_release(s):

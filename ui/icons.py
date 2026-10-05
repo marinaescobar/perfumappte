@@ -132,7 +132,11 @@ def _nav_find(p, col, hole):                                  # lupa (Descubrimi
 def _nav_rec(p, col, hole):                                   # destellos (Recomendaciones)
     _ink(p, col, 1.7, False); p.drawPath(_sparkle_path(10.5, 13.5, 8)); p.drawPath(_sparkle_path(18.6, 5.4, 3.8))
 
-ICONS = {"nav_col": _nav_col, "nav_find": _nav_find, "nav_rec": _nav_rec, "clock": _clock, "spray": _spray, "venus": _venus, "mars": _mars, "unisex": _unisex, "own": _own, "wish": _date,
+def _nav_set(p, col, hole):                                   # engranaje (Configuración)
+    _ink(p, col, 1.8, False); p.drawEllipse(QPointF(12, 12), 3.2, 3.2); p.drawEllipse(QPointF(12, 12), 7, 7)
+    for k in range(8): _ray(p, 12, 12, k * 45, 7, 10)
+
+ICONS = {"nav_set": _nav_set, "nav_col": _nav_col, "nav_find": _nav_find, "nav_rec": _nav_rec, "clock": _clock, "spray": _spray, "venus": _venus, "mars": _mars, "unisex": _unisex, "own": _own, "wish": _date,
          "primavera": _spring, "verano": _sun, "otoño": _autumn, "invierno": _winter,
          "día": _day, "noche": _night,
          "casual": _casual, "oficina": _office, "cita": _date, "formal": _formal, "fiesta": _party, "deporte": _sport}

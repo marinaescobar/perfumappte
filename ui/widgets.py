@@ -1,17 +1,16 @@
 """Widgets pequeños y reutilizables: tooltip propio, iconos, desplegable multiselección y selector de idioma."""
 import html
+import math
 import re
 from PyQt6 import sip
-from PyQt6.QtCore import QEvent, QObject, QPoint, QPropertyAnimation, QRectF, QSize, QTimer, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QObject, QPoint, QPointF, QPropertyAnimation, QRectF, QSize, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QCursor, QFont, QGuiApplication, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QTextDocument
 from PyQt6.QtWidgets import (QAbstractButton, QApplication, QFrame, QGraphicsDropShadowEffect, QLabel, QPushButton,
                              QScrollArea, QTabBar, QVBoxLayout, QWidget)
 from core import i18n
-from ui import icons
-from ui.theme import ACCENT, ICON_OFF, PANEL
-
-
-TIP_BORDER, TIP_TITLE, TIP_BODY = "#E3D3F3", "#6b4a8f", "#4a3b5c"
+from core.i18n import tr
+from ui import icons, theme
+from ui.theme import (ACCENT, ACCENT_HOVER, ICON_OFF, ICON_OFF_HOVER, PANEL, SHADOW, TIP_BODY, TIP_BORDER, TIP_BOT, TIP_TITLE, TIP_TOP)
 
 def _tip_markup(text):
     """Texto del tooltip -> HTML: primera línea como título lila con una chispa, el resto como cuerpo."""
@@ -57,8 +56,8 @@ class Tip(QWidget):
         p = QPainter(s); p.setRenderHint(QPainter.RenderHint.Antialiasing); p.setPen(Qt.PenStyle.NoPen)
         r = QRectF(s.rect()).adjusted(s.M, s.M, -s.M, -s.M)
         for i in range(s.M, 0, -1):                          # sombra violeta difuminada
-            p.setBrush(QColor(110, 70, 160, 3)); p.drawRoundedRect(r.adjusted(-i, -i + 3, i, i + 3), 14 + i, 14 + i)
-        g = QLinearGradient(r.topLeft(), r.bottomLeft()); g.setColorAt(0, QColor("#FFFFFF")); g.setColorAt(1, QColor("#F7F0FC"))
+            p.setBrush(QColor(*SHADOW, 3)); p.drawRoundedRect(r.adjusted(-i, -i + 3, i, i + 3), 14 + i, 14 + i)
+        g = QLinearGradient(r.topLeft(), r.bottomLeft()); g.setColorAt(0, QColor(TIP_TOP)); g.setColorAt(1, QColor(TIP_BOT))
         p.setPen(QPen(QColor(TIP_BORDER), 1)); p.setBrush(g); p.drawRoundedRect(r, 14, 14)
 
 class TipFilter(QObject):
@@ -104,7 +103,7 @@ class IconButton(QAbstractButton):
     def leaveEvent(s, e): s.hover = False; s.update()
     def paintEvent(s, e):
         p = QPainter(s)
-        on = "#7f55a6" if s.hover else ACCENT; off = "#BBA6D6" if s.hover else ICON_OFF
+        on = ACCENT_HOVER if s.hover else ACCENT; off = ICON_OFF_HOVER if s.hover else ICON_OFF
         icons.draw(p, s.kind, QRectF(2, 2, s.size, s.size), 1.0 if s.active else 0.0, on, off, PANEL)
 
 def tip_html(title, body=""):
@@ -142,7 +141,7 @@ class MultiSelect(QPushButton):
         pop.setObjectName("mspopw"); pop.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         lay = QVBoxLayout(pop); lay.setContentsMargins(12, 4, 12, 18)
         card = QFrame(); card.setObjectName("mspop"); sh = QGraphicsDropShadowEffect(card)
-        sh.setBlurRadius(24); sh.setOffset(0, 4); sh.setColor(QColor(110, 70, 160, 80)); card.setGraphicsEffect(sh)
+        sh.setBlurRadius(24); sh.setOffset(0, 4); sh.setColor(QColor(*SHADOW, 80)); card.setGraphicsEffect(sh)
         cl = QVBoxLayout(card); cl.setContentsMargins(8, 8, 8, 8); cl.setSpacing(2); s.btns = []
         inner = QWidget(); inner.setStyleSheet("background:transparent;"); il = QVBoxLayout(inner); il.setContentsMargins(0, 0, 0, 0); il.setSpacing(2)
         for v, l in s.items:
@@ -169,6 +168,40 @@ def flag_icon(code, w=30, h=20):
     p.setClipping(False); p.setBrush(Qt.BrushStyle.NoBrush); p.setPen(QPen(QColor(0, 0, 0, 40), 1.5)); p.drawRoundedRect(QRectF(.75, .75, W - 1.5, H - 1.5), 8, 8); p.end()
     return QIcon(pm)
 
+class ThemeToggle(QWidget):
+    """Interruptor claro / oscuro con dos mitades (sol y luna): la del tema activo se rellena con el acento."""
+    picked = pyqtSignal(str)
+    W, H = 76, 36
+    def __init__(s):
+        super().__init__(); s.mode = "light"; s.setFixedSize(s.W, s.H); s.setCursor(Qt.CursorShape.PointingHandCursor); s.setMouseTracking(True)
+    def set_mode(s, mode): s.mode = mode; s.update()
+    def _half(s, x): return "light" if x < s.W / 2 else "dark"
+    def mouseMoveEvent(s, e):
+        tip = tr("tip.theme." + s._half(e.position().x()))
+        if tip != s.toolTip(): s.setToolTip(tip)
+    def mousePressEvent(s, e):
+        m = s._half(e.position().x())
+        if m != s.mode: s.picked.emit(m)
+    def paintEvent(s, e):
+        p = QPainter(s); p.setRenderHint(QPainter.RenderHint.Antialiasing); r = QRectF(s.rect()).adjusted(.5, .5, -.5, -.5)
+        p.setPen(QPen(QColor(theme.BORDER), 1)); p.setBrush(QColor(theme.PANEL)); p.drawRoundedRect(r, r.height() / 2, r.height() / 2)
+        hw = r.width() / 2; dark = s.mode == "dark"
+        knob = QRectF(r.left() + 3 + (hw if dark else 0), r.top() + 3, hw - 6, r.height() - 6)
+        p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor(theme.GOLD)); p.drawRoundedRect(knob, knob.height() / 2, knob.height() / 2)
+        for i, kind in enumerate(("sun", "moon")):
+            c = QPointF(r.left() + hw * i + hw / 2, r.center().y()); on = (kind == "moon") == dark
+            s._icon(p, kind, c, QColor("white") if on else QColor(theme.MUTED))
+    @staticmethod
+    def _icon(p, kind, c, col):
+        pen = QPen(col, 1.7); pen.setCapStyle(Qt.PenCapStyle.RoundCap); p.setPen(pen)
+        if kind == "sun":
+            p.setBrush(Qt.BrushStyle.NoBrush); p.drawEllipse(c, 3.6, 3.6)
+            for k in range(8):
+                a = math.radians(k * 45); p.drawLine(QPointF(c.x() + 6 * math.cos(a), c.y() + 6 * math.sin(a)), QPointF(c.x() + 8 * math.cos(a), c.y() + 8 * math.sin(a)))
+        else:
+            moon = QPainterPath(); moon.addEllipse(c, 7, 7); cut = QPainterPath(); cut.addEllipse(QPointF(c.x() + 4.2, c.y() - 3.2), 6, 6)
+            p.setPen(Qt.PenStyle.NoPen); p.setBrush(col); p.drawPath(moon.subtracted(cut))
+
 class LangPicker(QPushButton):
     """Selector de idioma: muestra la bandera del idioma activo y al pulsarlo despliega las banderas disponibles."""
     picked = pyqtSignal(str)
@@ -182,7 +215,7 @@ class LangPicker(QPushButton):
         pop.setObjectName("mspopw"); pop.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         lay = QVBoxLayout(pop); lay.setContentsMargins(12, 4, 12, 18)
         card = QFrame(); card.setObjectName("mspop"); sh = QGraphicsDropShadowEffect(card)
-        sh.setBlurRadius(24); sh.setOffset(0, 4); sh.setColor(QColor(110, 70, 160, 80)); card.setGraphicsEffect(sh)
+        sh.setBlurRadius(24); sh.setOffset(0, 4); sh.setColor(QColor(*SHADOW, 80)); card.setGraphicsEffect(sh)
         cl = QVBoxLayout(card); cl.setContentsMargins(8, 8, 8, 8); cl.setSpacing(2)
         for code in i18n.LANGS:
             b = QPushButton("  " + s.NAMES.get(code, code)); b.setObjectName("opt"); b.setCheckable(True); b.setChecked(code == s.code)

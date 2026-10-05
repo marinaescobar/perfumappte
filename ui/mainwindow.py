@@ -1,20 +1,25 @@
 """Ventana principal: barra lateral plegable, páginas, chat de Góngora, perfil emergente y actualizaciones."""
 from PyQt6.QtCore import QEasingCurve, QRectF, QSize, QTimer, QVariantAnimation, Qt
 from PyQt6.QtGui import QIcon, QPainter, QPixmap
-from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QMainWindow, QMessageBox, QPushButton, QStackedWidget, QVBoxLayout, QWidget
+from PyQt6.QtGui import QColor, QPalette
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QMainWindow, QMessageBox, QPushButton, QStackedWidget, QToolTip, QVBoxLayout, QWidget
 from core import db, i18n, selfupdate, updater
 from core.version import VERSION
 from core.i18n import tr
-from ui import icons, logo
+from ui import icons, logo, theme
 from ui.chat import Bubble, ChatPanel
 from ui.pages.collection import CollectionPage
 from ui.pages.discover import DiscoverPage
 from ui.pages.profile import ProfilePopup
 from ui.pages.recs import RecsPage
 from ui.theme import ACCENT, MUTED, PANEL
-from ui.widgets import LangPicker
+from ui.widgets import LangPicker, ThemeToggle
 from ui.versions import VersionsDialog
 from ui.workers import ReleasesWorker, UpdateWorker
+
+
+def apply_tooltip_palette():
+    pal = QPalette(); pal.setColor(QPalette.ColorRole.ToolTipBase, QColor(theme.TT_BG)); pal.setColor(QPalette.ColorRole.ToolTipText, QColor(theme.TIP_BODY)); QToolTip.setPalette(pal)
 
 
 class Main(QMainWindow):
@@ -44,7 +49,8 @@ class Main(QMainWindow):
         right = QWidget(); rv = QVBoxLayout(right); rv.setContentsMargins(0, 0, 0, 0); rv.setSpacing(0)
         bar = QWidget(); bar.setObjectName("topbar"); bl = QHBoxLayout(bar); bl.setContentsMargins(26, 12, 26, 4)
         s.lang = LangPicker(); s.lang.set_code(i18n.LANG); s.lang.picked.connect(s.set_lang)
-        bl.addStretch(); bl.addWidget(s.lang); rv.addWidget(bar); rv.addWidget(s.stack, 1)
+        s.themer = ThemeToggle(); s.themer.set_mode(theme.MODE); s.themer.picked.connect(s.set_theme); bl.setSpacing(10)
+        bl.addStretch(); bl.addWidget(s.themer); bl.addWidget(s.lang); rv.addWidget(bar); rv.addWidget(s.stack, 1)
         h.addWidget(right, 1); s.setCentralWidget(root)
         s.chat = ChatPanel(root); s.chat.open_profile.connect(s.show_profile); s.chat.hide(); s.bubble = Bubble(root); s.bubble.clicked.connect(s.toggle_chat)
         s.prof = ProfilePopup(root); s.prof.closed.connect(s.refresh_page)
@@ -70,12 +76,22 @@ class Main(QMainWindow):
         o = s.side_open
         s.side.setFixedWidth(s.SIDE_W if o else s.SIDE_MINI)
         s.logo_lbl.setProperty("compact", not o); s.logo_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft if o else Qt.AlignmentFlag.AlignHCenter)
-        s.logo_lbl.setPixmap(logo.wordmark_pixmap(32) if o else logo.mark_pixmap(36))
+        s.logo_lbl.setPixmap(logo.wordmark_pixmap(32) if o else logo.mark_pixmap(36, tile=False))
         for b, key in zip(s.btns, s.NAV):
             b.setProperty("compact", not o); b.setText(("  " + tr(key)) if o else ""); b.setToolTip(tr("tip." + key) if o else tr(key) + "\n" + tr("tip." + key))
             b.style().unpolish(b); b.style().polish(b)
         s.logo_lbl.style().unpolish(s.logo_lbl); s.logo_lbl.style().polish(s.logo_lbl)
         s.stat.setVisible(o); s.update_version_button(); s.fold.setText("‹" if o else "›"); s.fold.setToolTip(tr("tip.fold.close") if o else tr("tip.fold.open"))
+    def set_theme(s, mode):
+        """Cambia entre tema claro y oscuro y lo recuerda para la próxima vez."""
+        if mode == theme.MODE: return
+        old = theme.palette(); theme.apply(mode); db.set_meta("theme", theme.MODE); apply_tooltip_palette()
+        theme.restyle(QApplication.instance(), old); s.retheme()
+    def retheme(s):
+        """Lo que se pinta con imágenes ya hechas (iconos, logo) hay que regenerarlo con los colores nuevos."""
+        s.themer.set_mode(theme.MODE)
+        for b, kind in zip(s.btns, s.NAV_ICONS): b.setIcon(s._nav_icon(kind))
+        s.apply_side(); s.chat.retheme(); s.prof.update()
     def set_lang(s, code):
         if code and code != i18n.LANG:
             i18n.set_lang(code); db.set_meta("lang", code); s.retranslate()

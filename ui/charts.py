@@ -4,9 +4,7 @@ from PyQt6.QtCore import Qt, QRectF, QPointF, QSize
 from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QPainterPath
 from PyQt6.QtWidgets import QWidget, QFrame, QVBoxLayout, QLabel, QSizePolicy
 from ui import icons
-
-ACCENT, TXT, MUTED, BORDER, TRACK, PANEL = "#9a6fc4", "#352447", "#8B8499", "#E7E2EE", "#F1EAF8", "#FFFFFF"
-PALETTE = ["#9a6fc4", "#c9b3e0", "#6b4a8f", "#b99ad6", "#352447", "#ddd0ec", "#8B8499", "#5a3d78", "#a98bd0", "#e8dff3"]
+from ui.theme import ACCENT, ACCENT_HOVER, BAR_HOVER, BORDER, HOVER, ICON_OFF, MUTED, PALE, PALETTE, PANEL, TRACK, TXT     # se actualizan al cambiar de tema
 
 
 def _font(p, px=12, bold=False):
@@ -61,9 +59,9 @@ class HBars(QWidget):
         lw = min(150, int(s.width() * 0.34)); vw = 44; x0 = lw + 8; x1 = s.width() - vw
         for i, r in enumerate(s.rows):
             y = i * s.ROW + 3; ix = 0
-            if i == s.hover: p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor("#FBF8FE")); p.drawRoundedRect(QRectF(-4, y - 1, s.width() + 8, 26), 10, 10)
+            if i == s.hover: p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor(HOVER)); p.drawRoundedRect(QRectF(-4, y - 1, s.width() + 8, 26), 10, 10)
             if r.get("icon"):
-                icons.draw(p, r["icon"], QRectF(0, y + 2, 20, 20), 1.0, ACCENT, "#D6CDE2", PANEL); ix = 26
+                icons.draw(p, r["icon"], QRectF(0, y + 2, 20, 20), 1.0, ACCENT, ICON_OFF, PANEL); ix = 26
             p.setPen(QColor(TXT)); p.drawText(QRectF(ix, y, lw - ix, 24), int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft),
                                               p.fontMetrics().elidedText(r["label"], Qt.TextElideMode.ElideRight, lw - ix))
             p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor(TRACK)); p.drawRoundedRect(QRectF(x0, y + 5, x1 - x0, 14), 7, 7)
@@ -110,7 +108,7 @@ class Donut(QWidget):
         p.setOpacity(1.0); inner = QRectF(c.x() - R + th * 0.7, c.y() - R + th * 0.7, 2 * (R - th * 0.7), 2 * (R - th * 0.7))
         if s.hover >= 0:
             lab, v, col = s.data[s.hover]
-            p.setPen(QColor(col if col not in ("#ddd0ec", "#e8dff3", "#c9b3e0") else ACCENT)); _font(p, 22, True)
+            p.setPen(QColor(col if col not in PALE else ACCENT)); _font(p, 22, True)
             p.drawText(QRectF(inner.left(), inner.center().y() - 22, inner.width(), 28), int(Qt.AlignmentFlag.AlignCenter), f"{round(100 * v / tot)}%")
             p.setPen(QColor(TXT)); _font(p, 11); p.drawText(QRectF(inner.left(), inner.center().y() + 6, inner.width(), 18), int(Qt.AlignmentFlag.AlignCenter),
                                                             p.fontMetrics().elidedText(lab, Qt.TextElideMode.ElideRight, int(inner.width())))
@@ -119,7 +117,7 @@ class Donut(QWidget):
         _font(p, 12); x = d + 36; y = (s.height() - len(s.data) * s.LEG) / 2
         for i, (lab, v, col) in enumerate(s.data):
             on = i == s.hover
-            if on: p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor("#FBF8FE")); p.drawRoundedRect(QRectF(x - 8, y, s.width() - x - 4, s.LEG), 10, 10)
+            if on: p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor(HOVER)); p.drawRoundedRect(QRectF(x - 8, y, s.width() - x - 4, s.LEG), 10, 10)
             p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor(col)); p.drawEllipse(QRectF(x, y + 7, 10, 10))
             p.setPen(QColor(TXT)); t = p.fontMetrics().elidedText(lab, Qt.TextElideMode.ElideRight, max(40, int(s.width() - x - 70)))
             p.drawText(QPointF(x + 18, y + 17), t); p.setPen(QColor(TXT if on else MUTED))
@@ -155,7 +153,7 @@ class Scatter(QWidget):
         a = s._area(); return QPointF(a.left() + a.width() * (0.06 + 0.88 * x), a.bottom() - a.height() * (0.06 + 0.88 * y))
     def paintEvent(s, e):
         p = QPainter(s); p.setRenderHint(QPainter.RenderHint.Antialiasing); a = s._area(); _font(p, 11)
-        p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor("#FBF8FE")); p.drawRoundedRect(a, 14, 14)
+        p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor(HOVER)); p.drawRoundedRect(a, 14, 14)
         p.setPen(QPen(QColor(BORDER), 1, Qt.PenStyle.DashLine)); p.drawLine(QPointF(a.center().x(), a.top() + 8), QPointF(a.center().x(), a.bottom() - 8))
         p.drawLine(QPointF(a.left() + 8, a.center().y()), QPointF(a.right() - 8, a.center().y()))
         p.setPen(QColor(MUTED)); lo, hi = s.lh
@@ -188,7 +186,7 @@ class VBars(QWidget):
         m = max((v for _l, v in s.data), default=1) or 1; base = s.height() - 22; top = 22
         for i, ((lab, v), (x, bw)) in enumerate(zip(s.data, s._cols())):
             h = (base - top) * v / m if v else 0; on = i == s.hover
-            p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor("#E8DFF3" if on else TRACK)); p.drawRoundedRect(QRectF(x, top, bw, base - top), 10, 10)
-            if h: p.setBrush(QColor("#7f55a6" if on else ACCENT)); p.drawRoundedRect(QRectF(x, base - max(h, 14), bw, max(h, 14)), 10, 10)
+            p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor(BAR_HOVER if on else TRACK)); p.drawRoundedRect(QRectF(x, top, bw, base - top), 10, 10)
+            if h: p.setBrush(QColor(ACCENT_HOVER if on else ACCENT)); p.drawRoundedRect(QRectF(x, base - max(h, 14), bw, max(h, 14)), 10, 10)
             p.setPen(QColor(TXT)); _font(p, 11, True); p.drawText(QRectF(x - 10, base - max(h, 14) - 20, bw + 20, 18), int(Qt.AlignmentFlag.AlignHCenter), str(v)); _font(p, 11)
             p.setPen(QColor(MUTED)); p.drawText(QRectF(x - 14, base + 4, bw + 28, 16), int(Qt.AlignmentFlag.AlignHCenter), lab)

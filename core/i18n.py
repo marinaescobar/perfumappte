@@ -149,6 +149,8 @@ UI = {
     "tip.rec.sim": ("Perfumes de la base de datos parecidos a uno de los tuyos.", "Perfumes in the database similar to one of yours."),
     "tip.rec.gap": ("Qué le falta a tu colección y qué perfumes lo cubrirían.", "What your collection lacks and which perfumes would fill it."),
     "tip.lang": ("Idioma de la aplicación.", "Application language."),
+    "tip.theme.light": ("Tema claro.", "Light theme."),
+    "tip.theme.dark": ("Tema oscuro.", "Dark theme."),
     "gongora.sub": ("Tu perfumista con IA", "Your AI perfumer"),
      "gongora.hello": ("Hola, soy **Góngora**, tu perfumista. Cuéntame a dónde vas, qué te pones o qué ambiente buscas y te digo qué perfume de tu colección te pega.",
                        "Hi, I am **Góngora**, your perfumer. Tell me where you are going, what you are wearing or what mood you want, and I will tell you which perfume in your collection suits you."),

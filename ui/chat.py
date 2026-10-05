@@ -8,7 +8,8 @@ from PyQt6.QtWidgets import (QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QIn
 from core import db, gongora, recommender as rec
 from core.i18n import tr
 from ui import avatar
-from ui.theme import ACCENT, BORDER, MUTED, TXT
+from ui import theme
+from ui.theme import ACCENT, BORDER, MUTED, SHADOW, TXT
 from ui.widgets import IconButton
 from ui.workers import GongoraWorker
 
@@ -92,7 +93,7 @@ class ChatPanel(QFrame):
         s.clr.setObjectName("gclear")
         s.cfg = QPushButton(); s.cfg.setFixedSize(30, 30); s.cfg.setCursor(Qt.CursorShape.PointingHandCursor); s.cfg.setIcon(tool_icon("cog", MUTED)); s.cfg.setIconSize(QSize(20, 20))
         s.cfg.setObjectName("gtool"); s.cfg.clicked.connect(s.ask_key)
-        x = QPushButton(); x.setToolTip(tr("tip.close")); x.setFixedSize(30, 30); x.setCursor(Qt.CursorShape.PointingHandCursor); x.setIcon(tool_icon("close", MUTED)); x.setIconSize(QSize(20, 20))
+        s.xb = x = QPushButton(); x.setToolTip(tr("tip.close")); x.setFixedSize(30, 30); x.setCursor(Qt.CursorShape.PointingHandCursor); x.setIcon(tool_icon("close", MUTED)); x.setIconSize(QSize(20, 20))
         x.setObjectName("gtool"); x.clicked.connect(s.hide)
         top.addWidget(av); top.addLayout(head); top.addStretch(); top.addWidget(s.clr); top.addWidget(s.cfg); top.addWidget(x); v.addLayout(top)
         line = QFrame(); line.setFixedHeight(1); line.setStyleSheet(f"background:{BORDER};"); v.addWidget(line)
@@ -107,8 +108,12 @@ class ChatPanel(QFrame):
         s.go = QPushButton("↑"); s.go.setObjectName("gold"); s.go.setFixedSize(40, 40); s.go.setCursor(Qt.CursorShape.PointingHandCursor)
         s.go.setStyleSheet("border-radius:20px;padding:0;font-size:17px;"); s.go.clicked.connect(lambda: s.send())
         row.addWidget(s.inp, 1); row.addWidget(s.go); v.addLayout(row)
-        eff = QGraphicsDropShadowEffect(s); eff.setBlurRadius(36); eff.setOffset(0, 8); eff.setColor(QColor(60, 30, 90, 70)); s.setGraphicsEffect(eff)
+        s.retheme()
         s.hello = s.add("bot", "", html_text=True); s.col.insertWidget(s.col.count() - 1, s.chips); s.retranslate()
+    def retheme(s):
+        """Colores que no salen de la hoja de estilos: iconos de los botones y sombra del panel."""
+        s.cfg.setIcon(tool_icon("cog", theme.MUTED)); s.xb.setIcon(tool_icon("close", theme.MUTED))
+        eff = QGraphicsDropShadowEffect(s); eff.setBlurRadius(36); eff.setOffset(0, 8); eff.setColor(QColor(*theme.SHADOW, 70)); s.setGraphicsEffect(eff)
     # ---------- burbujas
     def add(s, kind, text, html_text=False):
         """Añade una burbuja ('user', 'bot' o 'note') y devuelve su QLabel."""

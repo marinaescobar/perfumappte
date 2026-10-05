@@ -5,13 +5,11 @@
 """
 import os, sys, threading, time, traceback
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QPalette
-from PyQt6.QtWidgets import QApplication, QLabel, QMessageBox, QToolTip
+from PyQt6.QtWidgets import QApplication, QLabel, QMessageBox
 from core import db, i18n
 from core.i18n import tr
-from ui import images, logo
-from ui.mainwindow import Main
-from ui.theme import BORDER, QSS
+from ui import images, logo, theme
+from ui.mainwindow import Main, apply_tooltip_palette
 from ui.widgets import install_tips
 
 
@@ -75,14 +73,14 @@ def main():
     try:
         import ctypes; ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("perfumappte.app")   # icono propio en la barra de tareas
     except Exception: pass
-    app = QApplication(sys.argv); app.setStyleSheet(QSS); app.setWindowIcon(logo.app_icon())
+    app = QApplication(sys.argv); app.setStyleSheet(theme.QSS); app.setWindowIcon(logo.app_icon())
     if "--selftest" in sys.argv: sys.exit(selftest())
-    pal = QPalette(); pal.setColor(QPalette.ColorRole.ToolTipBase, QColor("#FBF8FE")); pal.setColor(QPalette.ColorRole.ToolTipText, QColor("#4a3b5c")); QToolTip.setPalette(pal)
     install_tips(app); app.aboutToQuit.connect(images.get_cache().abort_all)
     splash = QLabel(tr("app.preparing")); splash.setWindowFlag(Qt.WindowType.FramelessWindowHint); splash.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    splash.setStyleSheet(f"font-family:Georgia,serif;font-size:16px;border:1px solid {BORDER};"); splash.resize(380, 90); splash.show(); app.processEvents()
+    splash.setStyleSheet(f"font-family:Georgia,serif;font-size:16px;border:1px solid {theme.BORDER};"); splash.resize(380, 90); splash.show(); app.processEvents()
     db.init_db(lambda n: (splash.setText(tr("app.preparing.n", n)), app.processEvents()))
     i18n.set_lang(db.get_meta("lang") or i18n.DEFAULT)
+    theme.apply(db.get_meta("theme") or theme.DEFAULT); app.setStyleSheet(theme.QSS); apply_tooltip_palette()      # tema elegido (claro por defecto)
     w = Main(); w.show(); splash.close()
     threading.Thread(target=db.warm, daemon=True).start()          # deja listo el conjunto popular para «parecido a» y el chat
     sys.exit(app.exec())

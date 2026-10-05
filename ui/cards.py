@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QAbstractItemView, QApplication, QFrame, QHBoxLayout
 from core import recommender as rec
 from core.i18n import tr
 from ui import images
-from ui.theme import ACCENT, BORDER, MUTED, PANEL, SOFT, TXT
+from ui.theme import ACCENT, BORDER, BOTTLE, BOTTLE_CAP, MUTED, PANEL, SOFT, TXT
 from ui.widgets import IconButton, IconMeter, tip_html
 
 
@@ -35,9 +35,9 @@ class CardDelegate(QStyledItemDelegate):
         p.setBrush(col if (kind == "heart" and filled) else Qt.BrushStyle.NoBrush); p.setPen(pen); p.drawPath(path)
     @staticmethod
     def _bottle(p, r):
-        p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor("#E4D8F1")); cx = r.center().x()
+        p.setPen(Qt.PenStyle.NoPen); p.setBrush(QColor(BOTTLE)); cx = r.center().x()
         p.drawRoundedRect(cx - 22, r.top() + 36, 44, 70, 10, 10); p.drawRect(cx - 7, r.top() + 22, 14, 14)
-        p.setBrush(QColor("#CDBBE3")); p.drawRoundedRect(cx - 12, r.top() + 8, 24, 16, 4, 4)
+        p.setBrush(QColor(BOTTLE_CAP)); p.drawRoundedRect(cx - 12, r.top() + 8, 24, 16, 4, 4)
     def paint(s, p, opt, idx):
         d = idx.data(Qt.ItemDataRole.UserRole); r = s._card(opt.rect)
         p.save(); p.setRenderHint(QPainter.RenderHint.Antialiasing)

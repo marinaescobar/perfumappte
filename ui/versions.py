@@ -7,7 +7,7 @@ from core import selfupdate
 from core.i18n import tr
 from core.paths import FROZEN
 from core.version import VERSION
-from ui.theme import ACCENT, MUTED
+from ui.theme import ACCENT, ERR, MUTED
 from ui.workers import DownloadWorker, ReleasesWorker
 
 
@@ -54,7 +54,7 @@ class VersionsDialog(QDialog):
         s._end_worker(); s.rels = rels; selfupdate.mark_checked(); s._fill()
 
     def _failed(s, code):
-        s._end_worker(); s._say(html.escape(s._err(code)), "#b04a4a"); s.b_check.setEnabled(True)
+        s._end_worker(); s._say(html.escape(s._err(code)), ERR); s.b_check.setEnabled(True)
 
     def _end_worker(s):
         w, s.wk = s.wk, None
@@ -109,13 +109,13 @@ class VersionsDialog(QDialog):
         s.bar.hide()
 
     def _dl_failed(s, code):
-        s._end_download(); s._say(html.escape(s._err(code)), "#b04a4a"); s.b_update.setEnabled(True); s.b_check.setEnabled(True); s.b_skip.setEnabled(True)
+        s._end_download(); s._say(html.escape(s._err(code)), ERR); s.b_update.setEnabled(True); s.b_check.setEnabled(True); s.b_skip.setEnabled(True)
 
     def _downloaded(s, path):
         s._end_download(); s._say(html.escape(tr("ver.installing")))
         try: selfupdate.install(path)
         except (selfupdate.UpdateError, OSError) as e:
-            s._say(html.escape(s._err(str(e))), "#b04a4a"); s.b_update.setEnabled(True); return
+            s._say(html.escape(s._err(str(e))), ERR); s.b_update.setEnabled(True); return
         s.installing.emit()
 
     def closeEvent(s, e):

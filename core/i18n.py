@@ -365,6 +365,8 @@ UI = {
     "up.downloading": ("Descargando de Kaggle…", "Downloading from Kaggle…"),
     "up.importing": ("Importando…", "Importing…"),
     "up.nofile": ("La descarga no produjo ", "The download did not produce "),
+    "up.starting": ("Preparando…", "Getting ready…"),
+    "up.done": ("✓ Listo · {0}", "✓ Done · {0}"),
     "up.prog": ("Importando… {0:,}", "Importing… {0:,}"),
     "db.preparing": ("preparando… {0:,}", "preparing… {0:,}"),
     "db.res": ("nuevos: {0} · actualizados: {1}", "new: {0} · updated: {1}"),

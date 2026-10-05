@@ -7,7 +7,7 @@ from core import db, i18n
 from core.i18n import tr
 from core.note_emoji import note_emoji
 from ui.pages.base import PerfumeListPage
-from ui.theme import FAMILY_ICONS
+from ui.theme import FAMILY_ICONS, MUTED
 from ui.widgets import MultiSelect
 
 
@@ -67,8 +67,13 @@ class DiscoverPage(PerfumeListPage):
         s.ngrid = QGridLayout(); s.ngrid.setSpacing(8); pv.addLayout(s.ngrid, 1)
         for r in range(2): s.fgrid.setRowStretch(r, 1); s.ngrid.setRowStretch(r, 1)
         s.root.addWidget(s.panel, 1); s.root.addWidget(s.lv, 2); s.root.addWidget(s.info)
-        bar = QHBoxLayout(); s.update_btn = QPushButton(); s.update_btn.clicked.connect(s.update_requested.emit); bar.addWidget(s.update_btn); bar.addStretch(); s.root.addLayout(bar)
+        bar = QHBoxLayout(); s.update_btn = QPushButton(); s.update_btn.clicked.connect(s.update_requested.emit); bar.addWidget(s.update_btn)
+        s.update_lbl = QLabel(); s.update_lbl.setStyleSheet(f"color:{MUTED};background:transparent;"); bar.addSpacing(8); bar.addWidget(s.update_lbl); bar.addStretch(); s.root.addLayout(bar)
         s.retranslate()
+
+    def set_update_status(s, text, busy):
+        """Progreso de «Actualizar perfumes» junto al propio botón (que se desactiva mientras tanto)."""
+        s.update_lbl.setText(text); s.update_btn.setEnabled(not busy)
 
     @staticmethod
     def _flex(b):

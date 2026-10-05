@@ -151,11 +151,12 @@ class Main(QMainWindow):
         elif db.count() == 0: QMessageBox.information(s, tr("up.help.title"), updater.help_text())
     def start_update(s, manual):
         if s.uw and s.uw.isRunning(): return
-        s.uw = UpdateWorker(); s.uw.status.connect(s.stat.setText); s.uw.done.connect(s._upd_done)
-        s.uw.failed.connect(lambda msg: (s.stat.setText(updater.status_text()), manual and QMessageBox.warning(s, tr("up.title"), msg)))
+        s.uw = UpdateWorker(); disc = s.pages[1]; disc.set_update_status(tr("up.starting"), True)
+        s.uw.status.connect(lambda t: disc.set_update_status(t, True)); s.uw.done.connect(s._upd_done)
+        s.uw.failed.connect(lambda msg: (disc.set_update_status("", False), s.stat.setText(updater.status_text()), manual and QMessageBox.warning(s, tr("up.title"), msg)))
         s.uw.start()
     def _upd_done(s, new, upd):
-        s.stat.setText(updater.status_text()); s.refresh_page()
+        s.stat.setText(updater.status_text()); s.pages[1].set_update_status(tr("up.done", tr("db.res", new, upd)), False); s.refresh_page()
     def toggle_chat(s):
         s.chat.setVisible(not s.chat.isVisible()); s.place(); s.chat.raise_(); s.bubble.raise_()
         if s.chat.isVisible(): s.chat.inp.setFocus()

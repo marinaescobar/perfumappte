@@ -130,7 +130,7 @@ class Main(QMainWindow):
         if s.new_release and selfupdate.skipped() != s.new_release.version: s.open_versions(manual=False)
 
     def open_settings(s):
-        SettingsDialog(s, s.open_versions, s.new_release.version if s.new_release else None).exec()
+        SettingsDialog(s, s.open_versions, s.new_release.version if s.new_release else None, s.refresh_page).exec()
 
     def open_versions(s, manual=True):
         """`manual`: la abre la persona (busca de nuevo al abrirse); si no, es el aviso automático y ya trae las Releases."""
